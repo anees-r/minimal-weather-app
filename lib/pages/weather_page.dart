@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:lottie/lottie.dart';
 import 'package:minimal_weather_app/models/weather_model.dart';
+import 'package:minimal_weather_app/services/theme_data_service.dart';
 import 'package:minimal_weather_app/services/time_service.dart';
 import 'package:minimal_weather_app/services/weather_service.dart';
 import 'package:minimal_weather_app/app_assets.dart';
@@ -14,7 +15,10 @@ class WeatherPage extends StatefulWidget {
 }
 
 class _WeatherPageState extends State<WeatherPage> {
+  // theme mode
   bool _isDarkMode = false;
+
+  final ThemeDataService _themeDataService = ThemeDataService();
 
   // get api key
   final _weatherService = WeatherService('6ee8a1cb19b36cbb2dd61947cbf7942e');
@@ -22,6 +26,19 @@ class _WeatherPageState extends State<WeatherPage> {
 
   final timeofday = const TimeChecker();
   String get time => timeofday.getDayOrNight();
+
+  Future<void> _loadThemePreference() async {
+    _isDarkMode = await _themeDataService.getThemeMode();
+    setState(() {});
+  }
+
+  // Toggle and save theme preference
+  Future<void> _toggleTheme(bool value) async {
+    setState(() {
+      _isDarkMode = value;
+    });
+    await _themeDataService.saveThemeMode(_isDarkMode);
+  }
 
   _fetchWeather() async {
     // get current city
@@ -77,8 +94,8 @@ class _WeatherPageState extends State<WeatherPage> {
   @override
   void initState() {
     super.initState();
-    // fetch weather on startup
-    _fetchWeather();
+    _loadThemePreference(); // Load saved theme preference
+    _fetchWeather(); // fetch weather on startup
   }
 
   Color hexToColor(String hexCode) {
@@ -184,11 +201,9 @@ class _WeatherPageState extends State<WeatherPage> {
                 Switch(
                 value: _isDarkMode, // The initial state (off)
                 onChanged: (bool value) {
-                  setState(() {
-                    _isDarkMode =
-                        value; // Toggle the mode when the switch is changed
-                  });
-                }),
+                      _toggleTheme(value);
+                    },
+                    ),
                 ),
 
                 // moon icon
