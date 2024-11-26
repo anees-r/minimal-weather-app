@@ -33,6 +33,10 @@ class AppAssets{
   static const String darkHighlightColor = "#413a4b";
   static const String darkShadowColor = "#15111a";
 
+  // logo
+
+  static const String mainLogo = "assets/logo/main-logo.svg";
+
 
 
     

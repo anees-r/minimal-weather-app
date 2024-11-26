@@ -3,12 +3,13 @@ import 'package:lottie/lottie.dart';
 import 'package:minimal_weather_app/models/weather_model.dart';
 import 'package:minimal_weather_app/services/theme_data_service.dart';
 import 'package:minimal_weather_app/services/time_service.dart';
-import 'package:minimal_weather_app/services/weather_service.dart';
 import 'package:minimal_weather_app/app_assets.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
 class WeatherPage extends StatefulWidget {
-  const WeatherPage({super.key});
+  final Weather? weather;
+
+  const WeatherPage({super.key, required this.weather});
 
   @override
   State<WeatherPage> createState() => _WeatherPageState();
@@ -17,15 +18,18 @@ class WeatherPage extends StatefulWidget {
 class _WeatherPageState extends State<WeatherPage> {
   // theme mode
   bool _isDarkMode = false;
-
   final ThemeDataService _themeDataService = ThemeDataService();
 
-  // get api key
-  final _weatherService = WeatherService('6ee8a1cb19b36cbb2dd61947cbf7942e');
-  Weather? _weather;
+  bool _isLoading = false; // Loading state
 
   final timeofday = const TimeChecker();
   String get time => timeofday.getDayOrNight();
+
+  @override
+  void initState() {
+    super.initState();
+    _loadThemePreference(); // Load saved theme preference
+  }
 
   Future<void> _loadThemePreference() async {
     _isDarkMode = await _themeDataService.getThemeMode();
@@ -40,26 +44,11 @@ class _WeatherPageState extends State<WeatherPage> {
     await _themeDataService.saveThemeMode(_isDarkMode);
   }
 
-  _fetchWeather() async {
-    // get current city
-    String cityName = await _weatherService.getCity();
+  // Weather animation logic
+  String getWeatherAnimation(String? mainCondition) {
+    if (mainCondition == null) return AppAssets.clearDay;
 
-    // get weather for city
-    try {
-      final weather = await _weatherService.getWeather(cityName);
-      setState(() {
-        _weather = weather;
-      });
-    } catch (e) {
-      print("Error Fetching Weather: $e");
-    }
-  }
-
-  // animations
-  String getWeatherAnimation(String? mainConditon) {
-    if (mainConditon == null) return AppAssets.clearDay;
-
-    switch (mainConditon.toLowerCase()) {
+    switch (mainCondition.toLowerCase()) {
       case "clouds":
       case "mist":
       case "smoke":
@@ -70,32 +59,14 @@ class _WeatherPageState extends State<WeatherPage> {
       case "rain":
       case "drizzle":
       case "shower rain":
-        if (time == "Daytime") {
-          return AppAssets.rainyDay;
-        } else {
-          return AppAssets.rainyNight;
-        }
-
+        return time == "Daytime" ? AppAssets.rainyDay : AppAssets.rainyNight;
       case "snow":
         return AppAssets.snowy;
       case "thunderstorm":
         return AppAssets.thunderstorm;
-
       default:
-        if (time == "Daytime") {
-          return AppAssets.clearDay;
-        } else {
-          return AppAssets.clearNight;
-        }
+        return time == "Daytime" ? AppAssets.clearDay : AppAssets.clearNight;
     }
-  }
-
-  // initial state
-  @override
-  void initState() {
-    super.initState();
-    _loadThemePreference(); // Load saved theme preference
-    _fetchWeather(); // fetch weather on startup
   }
 
   Color hexToColor(String hexCode) {
@@ -108,6 +79,14 @@ class _WeatherPageState extends State<WeatherPage> {
 
   @override
   Widget build(BuildContext context) {
+    final weather = widget.weather; // Use the passed weather data
+
+    if (weather == null) {
+      return const Scaffold(
+        body: Center(child: Text("No weather data available.")),
+      );
+    }
+
     Color backgroundColor = _isDarkMode
         ? hexToColor(AppAssets.darkBackgroundColor)
         : hexToColor(AppAssets.lightBackgroundColor);
@@ -115,105 +94,103 @@ class _WeatherPageState extends State<WeatherPage> {
         ? hexToColor(AppAssets.darkPrimaryColor)
         : hexToColor(AppAssets.lightPrimaryColor);
     Color highlightColor = _isDarkMode
-        ? hexToColor(AppAssets.darkHighlightColor) 
+        ? hexToColor(AppAssets.darkHighlightColor)
         : hexToColor(AppAssets.lightHighlightColor);
     Color shadowColor = _isDarkMode
-        ? hexToColor(AppAssets.darkShadowColor) 
+        ? hexToColor(AppAssets.darkShadowColor)
         : hexToColor(AppAssets.lightShadowColor);
 
     return Scaffold(
       backgroundColor: backgroundColor,
       body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            // display location icon
-            SvgPicture.asset(AppAssets.locationIcon,
-                color: textColor.withOpacity(0.8), width: 25),
-            const SizedBox(height: 10),
-            // display city name
-            Text(
-              _weather?.cityName ?? "Loading City",
-              style: TextStyle(
-                  fontFamily: "BebasNeue",
-                  fontSize: 25,
-                  color: textColor.withOpacity(0.8)),
-            ),
-            const SizedBox(height: 100),
-
-            // Containter to apply neumorphism
-            // display animation
-
-            Container(
-              width: 250,
-              height: 250,
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(35),
-                color: backgroundColor,
-                boxShadow: [
-                  BoxShadow(
-                    color: highlightColor,
-                    offset: const Offset(-4.0, -4.0),
-                    spreadRadius: 1,
-                    blurRadius: 15,
+        child: _isLoading
+            ? CircularProgressIndicator(color: textColor) // Loading indicator
+            : Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  // Location Icon
+                  SvgPicture.asset(
+                    AppAssets.locationIcon,
+                    color: textColor.withOpacity(0.8),
+                    width: 25,
                   ),
-                  BoxShadow(
-                    color: shadowColor,
-                    offset: const Offset(4.0, 4.0),
-                    spreadRadius: 1,
-                    blurRadius: 15,
+                  const SizedBox(height: 10),
+                  // City name
+                  Text(
+                    weather.cityName,
+                    style: TextStyle(
+                      fontFamily: "BebasNeue",
+                      fontSize: 25,
+                      color: textColor.withOpacity(0.8),
+                    ),
                   ),
-                ],
-                
-  
-              ),
-              child: Padding(
-                padding: const EdgeInsets.all(
-                    16.0), // Adjust the padding value as needed
-                child:
-                    Lottie.asset(getWeatherAnimation(_weather?.mainCondition)),
-              ),
-            ),
-
-            const SizedBox(height: 100),
-
-            // display temprature
-            Text(
-                  "${_weather?.temprature.round()}°C",
-                  style: TextStyle(
+                  const SizedBox(height: 100),
+                  // Weather Animation
+                  Container(
+                    width: 250,
+                    height: 250,
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(35),
+                      color: backgroundColor,
+                      boxShadow: [
+                        BoxShadow(
+                          color: highlightColor,
+                          offset: const Offset(-4.0, -4.0),
+                          spreadRadius: 1,
+                          blurRadius: 15,
+                        ),
+                        BoxShadow(
+                          color: shadowColor,
+                          offset: const Offset(4.0, 4.0),
+                          spreadRadius: 1,
+                          blurRadius: 15,
+                        ),
+                      ],
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.all(16.0),
+                      child: Lottie.asset(getWeatherAnimation(weather.mainCondition)),
+                    ),
+                  ),
+                  const SizedBox(height: 100),
+                  // Temperature
+                  Text(
+                    "${weather.temprature.round()}°C",
+                    style: TextStyle(
                       fontFamily: "BebasNeue",
                       fontSize: 50,
-                      color: textColor.withOpacity(0.8)),
-                ),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-
-                // sun icon
-                SvgPicture.asset(AppAssets.sunIcon,
-                color: textColor.withOpacity(0.8), width: 15),
-                
-                // toggle switch for dark and light mode
-                Padding(
-                padding: const EdgeInsets.all(
-                    0.0), // Adjust the padding value as needed
-                child:
-                Switch(
-                value: _isDarkMode, // The initial state (off)
-                onChanged: (bool value) {
-                      _toggleTheme(value);
-                    },
+                      color: textColor.withOpacity(0.8),
                     ),
-                ),
-
-                // moon icon
-                SvgPicture.asset(AppAssets.moonIcon,
-                color: textColor.withOpacity(0.8), width: 15),
-              ],
-            ),
-            
-          ],
-        ),
+                  ),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      // Sun Icon
+                      SvgPicture.asset(
+                        AppAssets.sunIcon,
+                        color: textColor.withOpacity(0.8),
+                        width: 15,
+                      ),
+                      // Toggle theme
+                      Padding(
+                        padding: const EdgeInsets.all(0.0),
+                        child: Switch(
+                          value: _isDarkMode,
+                          onChanged: (bool value) {
+                            _toggleTheme(value);
+                          },
+                        ),
+                      ),
+                      // Moon Icon
+                      SvgPicture.asset(
+                        AppAssets.moonIcon,
+                        color: textColor.withOpacity(0.8),
+                        width: 15,
+                      ),
+                    ],
+                  ),
+                ],
+              ),
       ),
     );
   }

@@ -66,6 +66,7 @@ flutter:
   assets:
     - assets/animations/
     - assets/icons/
+    - assets/logo/
     #   - images/a_dot_ham.jpeg
   fonts:
       - family: BebasNeue
