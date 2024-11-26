@@ -37,11 +37,12 @@ android {
             signingConfig = signingConfigs.debug
         }
     }
-    
+
     applicationVariants.all { variant ->
-        variant.outputs.all { output ->
-            def newName = "Clouds-${variant.buildType.name}.apk"
-            outputFileName = newName
+        variant.outputs.all {
+            if (variant.buildType.name == "release") {
+                outputFileName = "clouds.apk"  // This sets the name of the APK
+            }
         }
     }
 }
